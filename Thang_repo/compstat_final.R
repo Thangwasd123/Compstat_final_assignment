@@ -1,4 +1,5 @@
-df <- read.csv("madrid_houses_clean.csv")
+df <- read.csv("data/madrid_houses_clean.csv")
+
 head(df)
 nrow(df)
 ncol(df)
