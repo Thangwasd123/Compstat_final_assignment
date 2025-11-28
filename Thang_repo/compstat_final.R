@@ -137,6 +137,13 @@ for (i in 1:length(features_list)){
       }
   }}}
 
+
+#The best predictor based on entropy
+#1 Predictor
+model <- glm(outcome ~ discr_n_rooms, 
+             data = train, 
+             family = binomial)
+
 """
 The method of the leave_one_out cross validation
 Input a full dataframe
