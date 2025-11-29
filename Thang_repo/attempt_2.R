@@ -6,7 +6,7 @@ nrow(df)
 ncol(df)
 colnames(df)
 typeof(df)
-df$price_label <- ifelse(df$buy_price >= 500000, 1, 0)
+df$price_class <- ifelse(df$buy_price >= 500000, 1, 0)
 colnames(df)
 
 trimmed_df <- df[,c(3,4,5,10,11,14,18)]
@@ -18,7 +18,7 @@ sample <- sample(c(TRUE, FALSE), nrow(trimmed_df), replace = TRUE, prob=c(0.7,0.
 train <- trimmed_df[sample,]
 test <- trimmed_df[!sample,]
 
-
+table(df$price_class)
 print(nrow(test)/(nrow(train) + nrow(test)))
 
 #install.packages("caret")
@@ -30,7 +30,7 @@ library(pROC)
 # ========================================
 # STEP 1: Generate All Possible Models
 # =======================================
-outcome_name <- c("price_label")
+outcome_name <- c("price_class")
 predictor_names <- setdiff(c(colnames(train)),outcome_name)
 
 all_models <- list()
