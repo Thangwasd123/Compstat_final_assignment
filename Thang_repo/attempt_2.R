@@ -146,3 +146,39 @@ cat("Predictors:", paste(best_predictors, collapse = " + "), "\n")
 cat("CV Accuracy:", cv_results$cv_accuracy[best_model_idx], "\n")
 cat("CV Error Rate:", cv_results$cv_error[best_model_idx], "\n")
 cat("CV AUC:", cv_results$cv_auc[best_model_idx], "\n")
+
+# ========================================
+# STEP 5: Refit Best Model on Full Training Data
+# ========================================
+
+final_formula <- as.formula(paste(outcome_name, "~", 
+                                  paste(best_predictors, collapse = " + ")))
+final_model <- glm(final_formula, data = train, family = binomial)
+
+cat("\n=== FINAL MODEL SUMMARY ===\n")
+summary(final_model)
+
+# ========================================
+# STEP 6: Evaluate on Test Set
+# ========================================
+
+test_predictions_prob <- predict(final_model, newdata = test, type = "response")
+test_predictions_class <- ifelse(test_predictions_prob > 0.5, 1, 0)
+
+test_accuracy <- mean(test_predictions_class == test[[outcome_name]])
+test_error <- mean(test_predictions_class != test[[outcome_name]])
+
+# Test AUC
+test_roc <- roc(test[[outcome_name]], test_predictions_prob, quiet = TRUE)
+test_auc <- auc(test_roc)
+
+cat("\n=== TEST SET PERFORMANCE ===\n")
+cat("Test Accuracy:", test_accuracy, "\n")
+cat("Test Error Rate:", test_error, "\n")
+cat("Test AUC:", test_auc, "\n")
+
+# Confusion Matrix
+cat("\n=== CONFUSION MATRIX (Test Set) ===\n")
+confusion_matrix <- table(Predicted = test_predictions_class, Actual = test[[outcome_name]])
+print(confusion_matrix)
+
