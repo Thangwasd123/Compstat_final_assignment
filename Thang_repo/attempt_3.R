@@ -171,3 +171,136 @@ ggplot(model_results, aes(x = cv_error)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
 
+
+# Fit the best model
+model <- glm(price_class ~ sq_mt_built + n_bathrooms + has_lift + has_parking, 
+             data = train, 
+             family = binomial)
+
+# Predict on test set
+model.prob <- predict(model, test, type = "response")
+
+# Calculate MSE on test set (matching your LOOCV approach)
+actual <- test$price_class
+test_mse <- mean((actual - model.prob)^2)
+
+# Also calculate misclassification rate if needed
+model.pred <- ifelse(model.prob > 0.5, "1", "0")
+confusion_matrix <- table(Predicted = model.pred, Actual = actual)
+
+# Misclassification error
+misclass_error <- (confusion_matrix[1, 2] + confusion_matrix[2, 1]) / length(actual)
+
+# Print results
+cat("\n=================================\n")
+cat("Test Set Performance:\n")
+cat("=================================\n")
+cat("Test MSE:", round(test_mse, 6), "\n")
+cat("Misclassification Error:", round(misclass_error, 6), "\n")
+cat("\nConfusion Matrix:\n")
+print(confusion_matrix)
+
+# Calculate additional metrics
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("\nAccuracy:", round(accuracy, 4), "\n")
+
+# Summary of the model
+cat("\n=================================\n")
+cat("Model Summary:\n")
+cat("=================================\n")
+summary(model)
+
+
+
+
+
+
+
+
+
+
+
+
+# ========================================
+# DOUBLE/NESTED LOOCV IMPLEMENTATION
+# ========================================
+
+# Outer LOOCV function
+double_loocv <- function(data, all_models) {
+  n <- nrow(data)
+  outer_predictions <- numeric(n)
+  outer_actuals <- data$price_class
+  selected_models <- character(n)  # Track which model was selected for each iteration
+  
+  cat("Starting Double LOOCV with", n, "outer iterations...\n\n")
+  
+  # OUTER LOOP: Leave one observation out
+  for (i in 1:n) {
+    if (i %% 100 == 0) cat("Outer iteration", i, "of", n, "\n")
+    
+    # Split data
+    outer_train <- data[-i, ]
+    outer_test <- data[i, ]
+    
+    # INNER LOOP: Model selection using LOOCV on outer_train
+    inner_results <- data.frame(
+      model_id = integer(),
+      cv_error = numeric(),
+      stringsAsFactors = FALSE
+    )
+    
+    for (j in 1:length(all_models)) {
+      predictors <- all_models[[j]]
+      
+      # Perform LOOCV on outer_train for this model
+      inner_cv_error <- manual_loocv(predictors, outer_train)$cv_error
+      
+      inner_results[j, "model_id"] <- j
+      inner_results[j, "cv_error"] <- inner_cv_error
+    }
+    
+    # Select best model from inner LOOCV
+    best_model_idx <- which.min(inner_results$cv_error)
+    best_predictors <- all_models[[best_model_idx]]
+    selected_models[i] <- paste(best_predictors, collapse = ", ")
+    
+    # Refit best model on full outer_train
+    formula_str <- paste("price_class ~", paste(best_predictors, collapse = " + "))
+    final_model <- glm(as.formula(formula_str), 
+                       data = outer_train, 
+                       family = binomial(link = "logit"))
+    
+    # Predict on outer_test (the single left-out observation)
+    outer_predictions[i] <- predict(final_model, newdata = outer_test, type = "response")
+  }
+  
+  # Calculate final CV error
+  final_cv_error <- mean((outer_actuals - outer_predictions)^2)
+  
+  return(list(
+    cv_error = final_cv_error,
+    predictions = outer_predictions,
+    selected_models = selected_models
+  ))
+}
+
+# Run double LOOCV
+cat("\n===========================================\n")
+cat("Running Double/Nested LOOCV...\n")
+cat("===========================================\n")
+
+double_loocv_results <- double_loocv(train_sampled, all_models)
+
+cat("\n===========================================\n")
+cat("Double LOOCV Results:\n")
+cat("===========================================\n")
+cat("Final CV Error (MSE):", double_loocv_results$cv_error, "\n")
+
+# See which models were most frequently selected
+cat("\nMost frequently selected models:\n")
+print(head(sort(table(double_loocv_results$selected_models), decreasing = TRUE), 10))
+
+
+ 
+
+
