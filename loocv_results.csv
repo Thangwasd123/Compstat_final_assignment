@@ -1,0 +1,57 @@
+"model_id","predictors","num_predictors","cv_error"
+50,"sq_mt_built, n_bathrooms, has_lift, has_parking",4,0.0781251221906232
+43,"sq_mt_built, n_rooms, n_bathrooms, has_lift",4,0.0788429021359011
+44,"sq_mt_built, n_rooms, n_bathrooms, has_parking",4,0.0792151213941674
+27,"sq_mt_built, n_bathrooms, has_lift",3,0.0792599734131771
+48,"sq_mt_built, n_bathrooms, is_renewal_needed, has_lift",4,0.0793913186684182
+22,"sq_mt_built, n_rooms, n_bathrooms",3,0.0800581926595579
+47,"sq_mt_built, n_rooms, has_lift, has_parking",4,0.0800787703016119
+42,"sq_mt_built, n_rooms, n_bathrooms, is_renewal_needed",4,0.0801571832046024
+51,"sq_mt_built, is_renewal_needed, has_lift, has_parking",4,0.0801575006425384
+31,"sq_mt_built, has_lift, has_parking",3,0.080179487171026
+28,"sq_mt_built, n_bathrooms, has_parking",3,0.0801992502481046
+49,"sq_mt_built, n_bathrooms, is_renewal_needed, has_parking",4,0.0802107880045277
+24,"sq_mt_built, n_rooms, has_lift",3,0.0807732459334351
+10,"sq_mt_built, has_lift",2,0.080775206414378
+8,"sq_mt_built, n_bathrooms",2,0.0808296777097192
+29,"sq_mt_built, is_renewal_needed, has_lift",3,0.0808484708145447
+45,"sq_mt_built, n_rooms, is_renewal_needed, has_lift",4,0.0808668972852964
+26,"sq_mt_built, n_bathrooms, is_renewal_needed",3,0.0809242945178852
+25,"sq_mt_built, n_rooms, has_parking",3,0.0821466671757885
+46,"sq_mt_built, n_rooms, is_renewal_needed, has_parking",4,0.0821476519625112
+30,"sq_mt_built, is_renewal_needed, has_parking",3,0.0823419320218676
+7,"sq_mt_built, n_rooms",2,0.0823911021234704
+11,"sq_mt_built, has_parking",2,0.08241947878517
+23,"sq_mt_built, n_rooms, is_renewal_needed",3,0.082466164483412
+1,"sq_mt_built",1,0.0825902286808058
+9,"sq_mt_built, is_renewal_needed",2,0.0826056664825877
+54,"n_rooms, n_bathrooms, has_lift, has_parking",4,0.104906302633112
+52,"n_rooms, n_bathrooms, is_renewal_needed, has_lift",4,0.105304737040193
+33,"n_rooms, n_bathrooms, has_lift",3,0.105334402504378
+34,"n_rooms, n_bathrooms, has_parking",3,0.108392521509611
+12,"n_rooms, n_bathrooms",2,0.108475141188588
+53,"n_rooms, n_bathrooms, is_renewal_needed, has_parking",4,0.108481748451835
+32,"n_rooms, n_bathrooms, is_renewal_needed",3,0.108522070947952
+56,"n_bathrooms, is_renewal_needed, has_lift, has_parking",4,0.109139308546948
+38,"n_bathrooms, is_renewal_needed, has_lift",3,0.109466751835696
+40,"n_bathrooms, has_lift, has_parking",3,0.10959260874379
+17,"n_bathrooms, has_lift",2,0.110171242805153
+39,"n_bathrooms, is_renewal_needed, has_parking",3,0.112293733725966
+16,"n_bathrooms, is_renewal_needed",2,0.112328241872074
+18,"n_bathrooms, has_parking",2,0.112607137410184
+3,"n_bathrooms",1,0.112789585642754
+55,"n_rooms, is_renewal_needed, has_lift, has_parking",4,0.142753323259924
+37,"n_rooms, has_lift, has_parking",3,0.143000766268724
+35,"n_rooms, is_renewal_needed, has_lift",3,0.14560423759077
+14,"n_rooms, has_lift",2,0.146465798744244
+36,"n_rooms, is_renewal_needed, has_parking",3,0.149149315140958
+15,"n_rooms, has_parking",2,0.149220631254737
+13,"n_rooms, is_renewal_needed",2,0.154117632216858
+2,"n_rooms",1,0.154799412676579
+41,"is_renewal_needed, has_lift, has_parking",3,0.214632132870261
+21,"has_lift, has_parking",2,0.215221352507895
+20,"is_renewal_needed, has_parking",2,0.215784535312331
+6,"has_parking",1,0.216313154479623
+5,"has_lift",1,0.234673428021893
+19,"is_renewal_needed, has_lift",2,0.234748033047439
+4,"is_renewal_needed",1,0.239274360213011
