@@ -62,27 +62,24 @@ model_results <- data.frame(
   model_id = integer(),
   predictors = character(),
   num_predictors = integer(),
-  cv_error = numeric(),
+  accuracy = numeric(),
   stringsAsFactors = FALSE
 )
 
-# Manual LOOCV function
-manual_loocv <- function(predictors, data) {
+# Manual LOOCV function with classification accuracy
+manual_loocv <- function(predictors, data, threshold = 0.5) {
   n <- nrow(data)
   predictions <- numeric(n)
   actuals <- data$price_class
   
   # Loop through each observation
   for (i in 1:n) {
-    # Create training set (all except i-th observation)
     train_fold <- data[-i, ]
-    # Test set (only i-th observation)
     test_fold <- data[i, ]
     
-    # Create formula
     formula_str <- paste("price_class ~", paste(predictors, collapse = " + "))
     
-    # Fit logistic regression model
+    # Fit logistic regression
     model <- glm(as.formula(formula_str), 
                  data = train_fold, 
                  family = binomial(link = "logit"))
@@ -91,15 +88,29 @@ manual_loocv <- function(predictors, data) {
     predictions[i] <- predict(model, newdata = test_fold, type = "response")
   }
   
-  # Calculate Cross-Validation Error (Mean Squared Error)
-  cv_error <- mean((actuals - predictions)^2)
+  # Convert probabilities to binary predictions
+  predicted_class <- ifelse(predictions >= threshold, 1, 0)
   
-  return(list(cv_error = cv_error, predictions = predictions))
+  # Confusion matrix components
+  TP <- sum(predicted_class == 1 & actuals == 1)  # True Positive
+  TN <- sum(predicted_class == 0 & actuals == 0)  # True Negative
+  FP <- sum(predicted_class == 1 & actuals == 0)  # False Positive
+  FN <- sum(predicted_class == 0 & actuals == 1)  # False Negative
+  
+  # Calculate accuracy as (TP + TN) / Total
+  accuracy <- (TP + TN) / n
+  
+  return(list(
+    accuracy = accuracy,
+    cv_error = 1 - accuracy,
+    predictions = predictions,
+    predicted_class = predicted_class,
+    confusion = c(TP = TP, TN = TN, FP = FP, FN = FN)
+  ))
 }
 
 # Loop through each model combination
 cat("Starting LOOCV for", length(all_models), "models...\n\n")
-
 for (i in 1:length(all_models)) {
   predictors <- all_models[[i]]
   
@@ -113,15 +124,15 @@ for (i in 1:length(all_models)) {
   model_results[i, "model_id"] <- i
   model_results[i, "predictors"] <- paste(predictors, collapse = ", ")
   model_results[i, "num_predictors"] <- length(predictors)
-  model_results[i, "cv_error"] <- loocv_results$cv_error
+  model_results[i, "accuracy"] <- loocv_results$accuracy  # CHANGED: cv_error → accuracy
 }
 
-# Sort by CV Error (lower is better)
-model_results <- model_results[order(model_results$cv_error), ]
+# Sort by Accuracy (HIGHER is better)
+model_results <- model_results[order(-model_results$accuracy), ]  # CHANGED: added minus sign, cv_error → accuracy
 
 # Display top 10 models
 cat("\n===========================================\n")
-cat("Top 10 Models by CV Error (Lower is Better):\n")
+cat("Top 10 Models by Accuracy (Higher is Better):\n")  # CHANGED: wording
 cat("===========================================\n")
 print(head(model_results, 10))
 
@@ -131,42 +142,57 @@ cat("\n===========================================\n")
 cat("Best Model:\n")
 cat("===========================================\n")
 cat("Predictors:", paste(best_model_predictors, collapse = ", "), "\n")
-cat("CV Error:", model_results$cv_error[1], "\n")
+cat("Accuracy:", model_results$accuracy[1], "\n")  # CHANGED: cv_error → accuracy
 write.csv(model_results, "loocv_results.csv", row.names = FALSE)
+
+# ========================================
+# STEP 3: Plotting distribution of accuracy
+# ========================================
 library(ggplot2)
 
-# Basic ggplot histogram
-ggplot(model_results, aes(x = cv_error)) +
+# Histogram of accuracy scores
+ggplot(model_results, aes(x = accuracy)) +
   geom_histogram(bins = 15, fill = "steelblue", color = "black", alpha = 0.7) +
-  geom_vline(aes(xintercept = min(cv_error)), 
+  geom_vline(aes(xintercept = max(accuracy)), 
              color = "red", linetype = "dashed", linewidth = 1) +
-  annotate("text", x = min(model_results$cv_error), y = Inf, 
-           label = paste0("Best model\n(CV Error = ", round(min(model_results$cv_error), 6), ")"),
+  annotate("text", x = max(model_results$accuracy), y = Inf, 
+           label = paste0("Best model\n(Accuracy = ", round(max(model_results$accuracy), 4), ")"),
            hjust = -0.1, vjust = 1.5, color = "red", size = 4) +
-  labs(title = "Distribution of LOOCV Classification Errors Across All Models",
-       x = "Cross-Validated Classification Error (MSE)",
+  labs(title = "Distribution of LOOCV Classification Accuracy Across All Models",
+       x = "Cross-Validated Classification Accuracy",
        y = "Frequency") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
 
 
 # Fit the best model
-model <- glm(price_class ~ n_rooms + n_bathrooms + is_renewal_needed + has_parking, 
+model <- glm(price_class ~ sq_mt_built, 
              data = train, 
              family = binomial)
 
 # Predict on test set
 model.prob <- predict(model, test, type = "response")
 
-# Calculate MSE on test set (matching your LOOCV approach)
+# Convert probabilities to binary predictions using 0.5 threshold
+predicted_class <- ifelse(model.prob >= 0.5, 1, 0)
 actual <- test$price_class
-test_mse <- mean((actual - model.prob)^2)
+
+# Calculate accuracy as (TP + TN) / Total
+TP <- sum(predicted_class == 1 & actual == 1)
+TN <- sum(predicted_class == 0 & actual == 0)
+FP <- sum(predicted_class == 1 & actual == 0)
+FN <- sum(predicted_class == 0 & actual == 1)
+
+test_accuracy <- (TP + TN) / length(actual)
 
 # Print results
 cat("\n=================================\n")
 cat("Test Set Performance:\n")
 cat("=================================\n")
-cat("Test MSE:", round(test_mse, 6), "\n")
+cat("Test Accuracy:", round(test_accuracy, 4), "\n")
+cat("Confusion Matrix:\n")
+cat("  TP:", TP, "  TN:", TN, "\n")
+cat("  FP:", FP, "  FN:", FN, "\n")
 
 # Summary of the model
 cat("\n=================================\n")
@@ -183,11 +209,10 @@ summary(model)
 
 # Outer LOOCV function
 
-
-double_loocv <- function(data, all_models) {
+double_loocv <- function(data, all_models, threshold = 0.5) {
   n <- nrow(data)
   outer_predictions <- numeric(n)
-  outer_actuals <- data$price_class  # <-- FIX: Add price_class
+  outer_actuals <- data$price_class
   selected_models <- character(n)
   
   cat("Starting Double LOOCV with", n, "outer iterations...\n\n")
@@ -203,7 +228,7 @@ double_loocv <- function(data, all_models) {
     # INNER LOOP: Model selection using LOOCV on outer_train
     inner_results <- data.frame(
       model_id = integer(),
-      cv_error = numeric(),
+      accuracy = numeric(),
       stringsAsFactors = FALSE
     )
     
@@ -211,14 +236,14 @@ double_loocv <- function(data, all_models) {
       predictors <- all_models[[j]]
       
       # Perform LOOCV on outer_train for this model
-      inner_cv_error <- manual_loocv(predictors, outer_train)$cv_error
+      inner_accuracy <- manual_loocv(predictors, outer_train, threshold)$accuracy
       
       inner_results[j, "model_id"] <- j
-      inner_results[j, "cv_error"] <- inner_cv_error
+      inner_results[j, "accuracy"] <- inner_accuracy
     }
     
-    # Select best model from inner LOOCV
-    best_model_idx <- which.min(inner_results$cv_error)
+    # Select best model from inner LOOCV (highest accuracy)
+    best_model_idx <- which.max(inner_results$accuracy)
     best_predictors <- all_models[[best_model_idx]]
     selected_models[i] <- paste(best_predictors, collapse = ", ")
     
@@ -232,13 +257,25 @@ double_loocv <- function(data, all_models) {
     outer_predictions[i] <- predict(final_model, newdata = outer_test, type = "response")
   }
   
-  # Calculate final CV error
-  final_cv_error <- mean((outer_actuals - outer_predictions)^2)
+  # Convert probabilities to binary predictions
+  predicted_class <- ifelse(outer_predictions >= threshold, 1, 0)
+  
+  # Calculate confusion matrix components
+  TP <- sum(predicted_class == 1 & outer_actuals == 1)
+  TN <- sum(predicted_class == 0 & outer_actuals == 0)
+  FP <- sum(predicted_class == 1 & outer_actuals == 0)
+  FN <- sum(predicted_class == 0 & outer_actuals == 1)
+  
+  # Calculate final accuracy
+  final_accuracy <- (TP + TN) / n
   
   return(list(
-    cv_error = final_cv_error,
+    accuracy = final_accuracy,
+    cv_error = 1 - final_accuracy,
     predictions = outer_predictions,
-    selected_models = selected_models
+    predicted_class = predicted_class,
+    selected_models = selected_models,
+    confusion = c(TP = TP, TN = TN, FP = FP, FN = FN)
   ))
 }
 
@@ -246,19 +283,20 @@ double_loocv <- function(data, all_models) {
 cat("\n===========================================\n")
 cat("Running Double/Nested LOOCV...\n")
 cat("===========================================\n")
-
 double_loocv_results <- double_loocv(trimmed_df, all_models)
 
 cat("\n===========================================\n")
 cat("Double LOOCV Results:\n")
 cat("===========================================\n")
-cat("Final CV Error (MSE):", double_loocv_results$cv_error, "\n")
+cat("Final Accuracy:", round(double_loocv_results$accuracy, 4), "\n")
+cat("Final CV Error:", round(double_loocv_results$cv_error, 4), "\n")
+cat("\nConfusion Matrix:\n")
+print(double_loocv_results$confusion)
 
 # See which models were most frequently selected
-cat("\nMost frequently selected models:\n")
+cat("\n===========================================\n")
+cat("Most frequently selected models:\n")
+cat("===========================================\n")
 print(head(sort(table(double_loocv_results$selected_models), decreasing = TRUE), 10))
-
-
- 
 
 
