@@ -21,11 +21,6 @@ trimmed_df$has_lift <- as.numeric(as.logical(trimmed_df$has_lift))
 trimmed_df$is_renewal_needed <- as.numeric(as.logical(trimmed_df$is_renewal_needed))
 trimmed_df$has_parking <- as.numeric(as.logical(trimmed_df$has_parking))
 
-
-
-library(caret)
-library(pROC)
-
 # ========================================
 # STEP 1: Generate All Possible Models
 # =======================================
@@ -52,10 +47,7 @@ cat("Breakdown: C(6,1)=", choose(6,1),
 # STEP 2: Implement a LOOCV procedure
 # =======================================
 
-#a. Measure of classification error: Cross Validation Loss (Sum of loss/loops)
-
-
-#b. Model Selection
+#. Model Selection
 
 # Store results for each model
 model_results <- data.frame(
@@ -129,6 +121,7 @@ for (i in 1:length(all_models)) {
 
 # Sort by Accuracy (HIGHER is better)
 model_results <- model_results[order(-model_results$accuracy), ]  # CHANGED: added minus sign, cv_error → accuracy
+model_results$errors <- 1 - model_results$accuracy
 
 # Display top 10 models
 cat("\n===========================================\n")
@@ -151,31 +144,30 @@ write.csv(model_results, "loocv_results.csv", row.names = FALSE)
 library(ggplot2)
 
 # Histogram of accuracy scores
-ggplot(model_results, aes(x = accuracy)) +
+ggplot(model_results, aes(x = errors)) +
   geom_histogram(bins = 15, fill = "steelblue", color = "black", alpha = 0.7) +
-  geom_vline(aes(xintercept = max(accuracy)), 
+  geom_vline(aes(xintercept = max(errors)), 
              color = "red", linetype = "dashed", linewidth = 1) +
-  annotate("text", x = max(model_results$accuracy), y = Inf, 
-           label = paste0("Best model\n(Accuracy = ", round(max(model_results$accuracy), 4), ")"),
+  annotate("text", x = min(model_results$accuracy), y = Inf, 
+           label = paste0("Lowest model\n(Error = ", round(max(model_results$errors), 4), ")"),
            hjust = -0.1, vjust = 1.5, color = "red", size = 4) +
-  labs(title = "Distribution of LOOCV Classification Accuracy Across All Models",
-       x = "Cross-Validated Classification Accuracy",
+  labs(title = "Distribution of LOOCV Classification Errors Across All Models",
+       x = "Cross-Validated Classification Errors",
        y = "Frequency") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
 
-
 # Fit the best model
 model <- glm(price_class ~ sq_mt_built, 
-             data = train, 
-             family = binomial)
+             data = trimmed_df, 
+             family = binomial(link="logit"))
 
 # Predict on test set
-model.prob <- predict(model, test, type = "response")
+model.prob <- predict(model, trimmed_df, type = "response")
 
 # Convert probabilities to binary predictions using 0.5 threshold
 predicted_class <- ifelse(model.prob >= 0.5, 1, 0)
-actual <- test$price_class
+actual <- trimmed_df$price_class
 
 # Calculate accuracy as (TP + TN) / Total
 TP <- sum(predicted_class == 1 & actual == 1)
@@ -187,7 +179,7 @@ test_accuracy <- (TP + TN) / length(actual)
 
 # Print results
 cat("\n=================================\n")
-cat("Test Set Performance:\n")
+cat("Full dataset Performance:\n")
 cat("=================================\n")
 cat("Test Accuracy:", round(test_accuracy, 4), "\n")
 cat("Confusion Matrix:\n")
@@ -285,18 +277,57 @@ cat("Running Double/Nested LOOCV...\n")
 cat("===========================================\n")
 double_loocv_results <- double_loocv(trimmed_df, all_models)
 
-cat("\n===========================================\n")
-cat("Double LOOCV Results:\n")
-cat("===========================================\n")
-cat("Final Accuracy:", round(double_loocv_results$accuracy, 4), "\n")
-cat("Final CV Error:", round(double_loocv_results$cv_error, 4), "\n")
-cat("\nConfusion Matrix:\n")
-print(double_loocv_results$confusion)
+# Create summary table
+double_loocv_summary <- data.frame(
+  Metric = c("Accuracy", "Classification Error", 
+             "True Positive (TP)", "True Negative (TN)",
+             "False Positive (FP)", "False Negative (FN)",
+             "Total Observations"),
+  Value = c(
+    round(double_loocv_results$accuracy, 4),
+    round(double_loocv_results$cv_error, 4),
+    double_loocv_results$confusion["TP"],
+    double_loocv_results$confusion["TN"],
+    double_loocv_results$confusion["FP"],
+    double_loocv_results$confusion["FN"],
+    length(double_loocv_results$predictions)
+  )
+)
 
-# See which models were most frequently selected
+# Display results
 cat("\n===========================================\n")
-cat("Most frequently selected models:\n")
+cat("Double LOOCV Results Summary:\n")
 cat("===========================================\n")
-print(head(sort(table(double_loocv_results$selected_models), decreasing = TRUE), 10))
+print(double_loocv_summary, row.names = FALSE)
 
+# Model selection frequency table WITH accuracy and error
+cat("\n===========================================\n")
+cat("Model Selection Frequency:\n")
+cat("===========================================\n")
+model_freq <- sort(table(double_loocv_results$selected_models), decreasing = TRUE)
+
+# Calculate accuracy for each unique model
+unique_models <- names(model_freq)
+model_accuracies <- numeric(length(unique_models))
+
+for (i in 1:length(unique_models)) {
+  model_name <- unique_models[i]
+  # Find this model in the original results
+  model_match <- which(model_results$predictors == model_name)
+  if (length(model_match) > 0) {
+    model_accuracies[i] <- model_results$accuracy[model_match[1]]
+  } else {
+    model_accuracies[i] <- NA
+  }
+}
+
+model_freq_df <- data.frame(
+  Model = unique_models,
+  Frequency = as.numeric(model_freq),
+  Percentage = round(100 * as.numeric(model_freq) / sum(model_freq), 2),
+  Accuracy = round(model_accuracies, 4),
+  Error = round(1 - model_accuracies, 4)
+)
+
+print(head(model_freq_df, 10), row.names = FALSE)
 
