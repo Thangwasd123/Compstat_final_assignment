@@ -30,7 +30,7 @@ library(pROC)
 # STEP 1: Generate All Possible Models
 # =======================================
 outcome_name <- c("price_class")
-predictor_names <- setdiff(c(colnames(train_sampled)),outcome_name)
+predictor_names <- setdiff(c(colnames(trimmed_df)),outcome_name)
 
 all_models <- list()
 model_count <- 0
