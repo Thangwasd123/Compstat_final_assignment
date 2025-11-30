@@ -9,7 +9,7 @@ typeof(df)
 df$price_class <- ifelse(df$buy_price >= 500000, 1, 0)
 colnames(df)
 df <- df[df$district == 2, ]
-trimmed_df <- df[,c(3,4,5,10,11,14,16,18)]
+trimmed_df <- df[,c(3,4,5,10,11,14,18)]
 colnames(trimmed_df)
 nrow(trimmed_df)
 
