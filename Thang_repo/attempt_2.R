@@ -10,6 +10,7 @@ df$price_class <- ifelse(df$buy_price >= 500000, 1, 0)
 colnames(df)
 
 trimmed_df <- df[,c(3,4,5,10,11,14,18)]
+tr
 colnames(trimmed_df)
 
 set.seed(20251126)
@@ -61,9 +62,6 @@ folds <- createFolds(train[[outcome_name]], k = k_folds, list = TRUE)
 # STEP 3: Evaluate All Models
 # ========================================
 
-# ========================================
-# STEP 3: Evaluate All Models
-# ========================================
 
 # Storage for results
 cv_results <- data.frame(

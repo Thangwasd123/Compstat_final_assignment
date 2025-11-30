@@ -8,40 +8,18 @@ colnames(df)
 typeof(df)
 df$price_class <- ifelse(df$buy_price >= 500000, 1, 0)
 colnames(df)
-
-trimmed_df <- df[,c(3,4,5,10,11,14,18)]
+df <- df[df$district == 2, ]
+trimmed_df <- df[,c(3,4,5,10,11,14,16,18)]
 colnames(trimmed_df)
+nrow(trimmed_df)
 
 set.seed(20251126)
-
-sample <- sample(c(TRUE, FALSE), nrow(trimmed_df), replace = TRUE, prob=c(0.7,0.3))
-train <- trimmed_df[sample,]
-test <- trimmed_df[!sample,]
-
-print(nrow(test)/(nrow(train) + nrow(test)))
-
 #install.packages("caret")
 #install.packages("pROC")
 
-
-# Get the proportion of each class in the original data
-table(train$price_class)
-prop.table(table(train$price_class))
-
-library(sampling)
-
-# Stratified sampling with exact sample size
-sample_size <- 3000
-
-# Create strata
-strata_info <- strata(
-  data = train,
-  stratanames = "price_class",
-  size = round(table(train$price_class) * sample_size / nrow(train)),
-  method = "srswor"  # Simple random sampling without replacement
-)
-
-train_sampled <- train[strata_info$ID_unit, ]
+trimmed_df$has_lift <- as.numeric(as.logical(trimmed_df$has_lift))
+trimmed_df$is_renewal_needed <- as.numeric(as.logical(trimmed_df$is_renewal_needed))
+trimmed_df$has_parking <- as.numeric(as.logical(trimmed_df$has_parking))
 
 
 
@@ -129,7 +107,7 @@ for (i in 1:length(all_models)) {
       paste(predictors, collapse = ", "), "\n")
   
   # Perform manual LOOCV
-  loocv_results <- manual_loocv(predictors, train_sampled)
+  loocv_results <- manual_loocv(predictors, trimmed_df)
   
   # Store results
   model_results[i, "model_id"] <- i
@@ -173,7 +151,7 @@ ggplot(model_results, aes(x = cv_error)) +
 
 
 # Fit the best model
-model <- glm(price_class ~ sq_mt_built + n_bathrooms + has_lift + has_parking, 
+model <- glm(price_class ~ n_rooms + n_bathrooms + is_renewal_needed + has_parking, 
              data = train, 
              family = binomial)
 
@@ -184,25 +162,11 @@ model.prob <- predict(model, test, type = "response")
 actual <- test$price_class
 test_mse <- mean((actual - model.prob)^2)
 
-# Also calculate misclassification rate if needed
-model.pred <- ifelse(model.prob > 0.5, "1", "0")
-confusion_matrix <- table(Predicted = model.pred, Actual = actual)
-
-# Misclassification error
-misclass_error <- (confusion_matrix[1, 2] + confusion_matrix[2, 1]) / length(actual)
-
 # Print results
 cat("\n=================================\n")
 cat("Test Set Performance:\n")
 cat("=================================\n")
 cat("Test MSE:", round(test_mse, 6), "\n")
-cat("Misclassification Error:", round(misclass_error, 6), "\n")
-cat("\nConfusion Matrix:\n")
-print(confusion_matrix)
-
-# Calculate additional metrics
-accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-cat("\nAccuracy:", round(accuracy, 4), "\n")
 
 # Summary of the model
 cat("\n=================================\n")
@@ -213,24 +177,18 @@ summary(model)
 
 
 
-
-
-
-
-
-
-
-
 # ========================================
 # DOUBLE/NESTED LOOCV IMPLEMENTATION
 # ========================================
 
 # Outer LOOCV function
+
+
 double_loocv <- function(data, all_models) {
   n <- nrow(data)
   outer_predictions <- numeric(n)
-  outer_actuals <- data$price_class
-  selected_models <- character(n)  # Track which model was selected for each iteration
+  outer_actuals <- data$price_class  # <-- FIX: Add price_class
+  selected_models <- character(n)
   
   cat("Starting Double LOOCV with", n, "outer iterations...\n\n")
   
@@ -289,7 +247,7 @@ cat("\n===========================================\n")
 cat("Running Double/Nested LOOCV...\n")
 cat("===========================================\n")
 
-double_loocv_results <- double_loocv(train_sampled, all_models)
+double_loocv_results <- double_loocv(trimmed_df, all_models)
 
 cat("\n===========================================\n")
 cat("Double LOOCV Results:\n")
